@@ -2,10 +2,38 @@
 #include "graph.cuh"
 #include "subgraph.cuh"
 #include "gpu_error_check.cuh"
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 
 const unsigned int NUM_THREADS = 64;
 
 const unsigned int THRESHOLD_THREAD = 50000;
+
+namespace {
+	double g_gpu_subgraph_ms = 0.0;
+	double g_dynamic_cpu_ms = 0.0;
+	unsigned long long g_gpu_subgraph_iters = 0;
+	unsigned long long g_dynamic_cpu_iters = 0;
+	bool g_timing_registered = false;
+
+	void PrintAccumulatedSubgraphTiming()
+	{
+		fprintf(stdout, "GPU Subgraph Time (accumulated): %.3f ms\n", g_gpu_subgraph_ms);
+		fprintf(stdout, "GPU Subgraph Iterations: %llu\n", g_gpu_subgraph_iters);
+		fprintf(stdout, "Dynamic CPU Time (accumulated): %.3f ms\n", g_dynamic_cpu_ms);
+		fprintf(stdout, "Dynamic CPU Iterations: %llu\n", g_dynamic_cpu_iters);
+	}
+
+	inline void EnsureTimingRegistered()
+	{
+		if(!g_timing_registered)
+		{
+			std::atexit(PrintAccumulatedSubgraphTiming);
+			g_timing_registered = true;
+		}
+	}
+}
 
 __global__ void prePrefix(unsigned int *activeNodesLabeling, unsigned int *activeNodesDegree, 
 							unsigned int *outDegree, bool *label1, bool *label2, unsigned int numNodes)
@@ -130,8 +158,9 @@ void SubgraphGenerator<E>::generate(Graph<E> &graph, Subgraph<E> &subgraph)
 	//std::chrono::time_point<std::chrono::system_clock> startDynG, finishDynG;
 	//startDynG = std::chrono::system_clock::now();
 	
+	auto gpuSubgraphStart = std::chrono::high_resolution_clock::now();
 	prePrefix<<<graph.num_nodes/512+1, 512>>>(d_activeNodesLabeling, d_activeNodesDegree, graph.d_outDegree, graph.d_label1, graph.d_label2, graph.num_nodes);
-		
+
 	thrust::device_ptr<unsigned int> ptr_labeling(d_activeNodesLabeling);
 	thrust::device_ptr<unsigned int> ptr_labeling_prefixsum(d_prefixLabeling);
 	
@@ -160,6 +189,11 @@ void SubgraphGenerator<E>::generate(Graph<E> &graph, Subgraph<E> &subgraph)
 	gpuErrorcheck(cudaMemcpy(subgraph.d_activeNodesPointer+subgraph.numActiveNodes, &last, sizeof(unsigned int), cudaMemcpyHostToDevice));
 	
 	gpuErrorcheck(cudaMemcpy(subgraph.activeNodesPointer, subgraph.d_activeNodesPointer, (subgraph.numActiveNodes+1)*sizeof(unsigned int), cudaMemcpyDeviceToHost));
+	auto gpuSubgraphEnd = std::chrono::high_resolution_clock::now();
+	auto gpuSubgraphMs = std::chrono::duration_cast<std::chrono::microseconds>(gpuSubgraphEnd - gpuSubgraphStart).count() / 1000.0;
+	EnsureTimingRegistered();
+	g_gpu_subgraph_ms += gpuSubgraphMs;
+	g_gpu_subgraph_iters++;
 	
 	
 	//finishDynG = std::chrono::system_clock::now();
@@ -174,6 +208,8 @@ void SubgraphGenerator<E>::generate(Graph<E> &graph, Subgraph<E> &subgraph)
 
 	if(subgraph.numActiveNodes < THRESHOLD_THREAD)
 		numThreads = 1;
+
+	auto startDynC = std::chrono::high_resolution_clock::now();
 
 	thread runThreads[numThreads];
 	
@@ -195,6 +231,12 @@ void SubgraphGenerator<E>::generate(Graph<E> &graph, Subgraph<E> &subgraph)
 		
 	for(unsigned int t=0; t<numThreads; t++)
 		runThreads[t].join();
+
+	auto finishDynC = std::chrono::high_resolution_clock::now();
+	auto elapsedDynC = std::chrono::duration_cast<std::chrono::microseconds>(finishDynC - startDynC);
+	EnsureTimingRegistered();
+	g_dynamic_cpu_ms += (elapsedDynC.count() / 1000.0);
+	g_dynamic_cpu_iters++;
 	
 	//finishDynC = std::chrono::system_clock::now();
 	//std::chrono::duration<double> elapsed_seconds_dync = finishDynC-startDynC;
@@ -211,8 +253,9 @@ void SubgraphGenerator<E>::generate(GraphPR<E> &graph, Subgraph<E> &subgraph, fl
 	//std::chrono::time_point<std::chrono::system_clock> startDynG, finishDynG;
 	//startDynG = std::chrono::system_clock::now();
 	
+	auto gpuSubgraphStart = std::chrono::high_resolution_clock::now();
 	prePrefix<<<graph.num_nodes/512+1, 512>>>(d_activeNodesLabeling, d_activeNodesDegree, graph.d_outDegree, graph.d_delta, graph.num_nodes, acc);
-		
+
 	thrust::device_ptr<unsigned int> ptr_labeling(d_activeNodesLabeling);
 	thrust::device_ptr<unsigned int> ptr_labeling_prefixsum(d_prefixLabeling);
 	
@@ -241,6 +284,11 @@ void SubgraphGenerator<E>::generate(GraphPR<E> &graph, Subgraph<E> &subgraph, fl
 	gpuErrorcheck(cudaMemcpy(subgraph.d_activeNodesPointer+subgraph.numActiveNodes, &last, sizeof(unsigned int), cudaMemcpyHostToDevice));
 	
 	gpuErrorcheck(cudaMemcpy(subgraph.activeNodesPointer, subgraph.d_activeNodesPointer, (subgraph.numActiveNodes+1)*sizeof(unsigned int), cudaMemcpyDeviceToHost));
+	auto gpuSubgraphEnd = std::chrono::high_resolution_clock::now();
+	auto gpuSubgraphMs = std::chrono::duration_cast<std::chrono::microseconds>(gpuSubgraphEnd - gpuSubgraphStart).count() / 1000.0;
+	EnsureTimingRegistered();
+	g_gpu_subgraph_ms += gpuSubgraphMs;
+	g_gpu_subgraph_iters++;
 	
 	
 	//finishDynG = std::chrono::system_clock::now();
@@ -255,6 +303,8 @@ void SubgraphGenerator<E>::generate(GraphPR<E> &graph, Subgraph<E> &subgraph, fl
 
 	if(subgraph.numActiveNodes < THRESHOLD_THREAD)
 		numThreads = 1;
+
+	auto startDynC = std::chrono::high_resolution_clock::now();
 
 	thread runThreads[numThreads];
 	
@@ -276,6 +326,12 @@ void SubgraphGenerator<E>::generate(GraphPR<E> &graph, Subgraph<E> &subgraph, fl
 		
 	for(unsigned int t=0; t<numThreads; t++)
 		runThreads[t].join();
+
+	auto finishDynC = std::chrono::high_resolution_clock::now();
+	auto elapsedDynC = std::chrono::duration_cast<std::chrono::microseconds>(finishDynC - startDynC);
+	EnsureTimingRegistered();
+	g_dynamic_cpu_ms += (elapsedDynC.count() / 1000.0);
+	g_dynamic_cpu_iters++;
 	
 	//finishDynC = std::chrono::system_clock::now();
 	//std::chrono::duration<double> elapsed_seconds_dync = finishDynC-startDynC;
@@ -286,4 +342,3 @@ void SubgraphGenerator<E>::generate(GraphPR<E> &graph, Subgraph<E> &subgraph, fl
 
 template class SubgraphGenerator<OutEdge>;
 template class SubgraphGenerator<OutEdgeWeighted>;
-

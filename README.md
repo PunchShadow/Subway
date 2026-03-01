@@ -9,9 +9,9 @@ To compile Subway, just run make in the root directory. The only requrements are
 
 #### Input graph formats
 
-Subway accepts edge-list (.el) and weighted edge-list (.wel) graph formats, as well as the binary serialized pre-built CSR graph representation (.bcsr and .bwcsr). It is highly recommended to convert edge-list format graph files to the binary format (using tools/converter). Reading binary formats is faster and more space efficient.
+Subway accepts edge-list (.el), SNAP edge-list (.txt), and weighted edge-list (.wel) graph formats, as well as the binary serialized pre-built CSR graph representation (.bcsr and .bwcsr). `.el` files may include an optional third column for `edge_weight`; when present, the converter will emit `.bwcsr`. It is highly recommended to convert edge-list format graph files to the binary format (using tools/converter). Reading binary formats is faster and more space efficient.
 
-Subway is sensitive to graph file extension. A weighted edge-list graph file has to end with .wel. The followings are two graph file examples.
+Subway is sensitive to graph file extension. A weighted edge-list graph file has to end with .wel, and a SNAP edge-list file has to end with .txt. Comment/header lines beginning with `#` or `%` are ignored for edge-list inputs. The followings are two graph file examples.
 
 Graph.el ("SOURCE DESTINATION" for each edge in each line):
 ```
@@ -19,6 +19,24 @@ Graph.el ("SOURCE DESTINATION" for each edge in each line):
 0 3
 2 3
 1 2
+```
+
+Weighted Graph.el ("SOURCE DESTINATION WEIGHT" for each edge in each line):
+```
+0 1 26
+0 3 33
+2 3 40
+1 2 10
+```
+
+SNAP (.txt) edge-list ("SOURCE DESTINATION" with optional header/comment lines that start with `#`):
+```
+# Nodes: 4 Edges: 4
+# FromNodeId	ToNodeId
+0	1
+0	3
+2	3
+1	2
 ```
 
 Graph.wel ("SOURCE DESTINATION WEIGHT" for each edge in each line):
@@ -32,6 +50,7 @@ Graph.wel ("SOURCE DESTINATION WEIGHT" for each edge in each line):
 To convert these graph files to the binary format, run the following commands in the root folder:
 ```
 tools/converter path_to_Graph.el
+tools/converter path_to_Graph.txt
 tools/converter path_to_Graph.wel
 ```
 
@@ -52,5 +71,3 @@ For applications that run on weighted graphs, like SSSP, the input must be weigh
 [EUROSYS'20] Amir Hossein Nodehi Sabet, Zhijia Zhao, and Rajiv Gupta. [Subway: minimizing data transfer during out-of-GPU-memory graph processing](https://dl.acm.org/doi/abs/10.1145/3342195.3387537). In Proceedings of the Fifteenth European Conference on Computer Systems.
 
 [ASPLOS'18] Amir Hossein Nodehi Sabet, Junqiao Qiu, and Zhijia Zhao. [Tigr: Transforming Irregular Graphs for GPU-Friendly Graph Processing](https://dl.acm.org/doi/10.1145/3173162.3173180). In Proceedings of the Twenty-Third International Conference on Architectural Support for Programming Languages and Operating Systems.
-
-

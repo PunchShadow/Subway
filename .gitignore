@@ -1,0 +1,13 @@
+*.o
+bfs-async
+bfs-sync
+cc-async
+cc-sync
+datasets
+pr-async
+pr-sync
+sssp-async
+sssp-sync
+sswp-async
+sswp-sync
+tools/converter

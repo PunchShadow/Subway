@@ -1,4 +1,5 @@
 #include "../shared/globals.hpp"
+#include <cctype>
 
 
 bool IsWeightedFormat(string format)
@@ -17,6 +18,25 @@ string GetFileExtension(string fileName)
     return "";
 }
 
+string ReplaceExtension(string fileName, string extension)
+{
+	size_t dot = fileName.find_last_of(".");
+	if(dot == string::npos)
+		return fileName + "." + extension;
+	return fileName.substr(0, dot + 1) + extension;
+}
+
+bool IsCommentOrEmptyLine(const string& line)
+{
+	for(size_t i = 0; i < line.size(); i++)
+	{
+		unsigned char c = static_cast<unsigned char>(line[i]);
+		if(!isspace(c))
+			return c == '#' || c == '%';
+	}
+	return true;
+}
+
 int main(int argc, char** argv)
 {
 	if(argc!= 2)
@@ -27,7 +47,9 @@ int main(int argc, char** argv)
 	
 	string input = string(argv[1]);
 	
-	if(GetFileExtension(input) == "el")
+	if(GetFileExtension(input) == "el" ||
+		GetFileExtension(input) == "txt" ||
+		GetFileExtension(input) == "snap")
 	{
 		ifstream infile;
 		infile.open(input);
@@ -36,16 +58,24 @@ int main(int argc, char** argv)
 		string line;
 		uint edgeCounter = 0;
 		
-		vector<Edge> edges;
-		Edge newEdge;
+		bool hasWeight = false;
+		vector<EdgeWeighted> edges;
+		EdgeWeighted newEdge;
 		while(getline( infile, line ))
 		{
+			if(IsCommentOrEmptyLine(line))
+				continue;
+
 			ss.str("");
 			ss.clear();
 			ss << line;
-			
-			ss >> newEdge.source;
-			ss >> newEdge.end;
+
+			if(!(ss >> newEdge.source >> newEdge.end))
+				continue;
+			if(ss >> newEdge.w8)
+				hasWeight = true;
+			else
+				newEdge.w8 = 1;
 			
 			edges.push_back(newEdge);
 			edgeCounter++;
@@ -60,7 +90,6 @@ int main(int argc, char** argv)
 		uint num_nodes = max + 1;
 		uint num_edges = edgeCounter;
 		uint *nodePointer = new uint[num_nodes+1];
-		OutEdge *edgeList = new OutEdge[num_edges];
 		uint *degree = new uint[num_nodes];
 		for(uint i=0; i<num_nodes; i++)
 			degree[i] = 0;
@@ -74,25 +103,56 @@ int main(int argc, char** argv)
 			counter = counter + degree[i];
 		}
 		uint *outDegreeCounter  = new uint[num_nodes];
-		uint location;  
-		for(uint i=0; i<num_edges; i++)
+		for(uint i=0; i<num_nodes; i++)
+			outDegreeCounter[i] = 0;
+
+		if(hasWeight)
 		{
-			uint location = nodePointer[edges[i].source] + outDegreeCounter[edges[i].source];
-			edgeList[location].end = edges[i].end;
-			outDegreeCounter[edges[i].source]++;  
+			OutEdgeWeighted *edgeList = new OutEdgeWeighted[num_edges];
+			uint location;  
+			for(uint i=0; i<num_edges; i++)
+			{
+				uint location = nodePointer[edges[i].source] + outDegreeCounter[edges[i].source];
+				edgeList[location].end = edges[i].end;
+				edgeList[location].w8 = edges[i].w8;
+				outDegreeCounter[edges[i].source]++;  
+			}
+
+			std::ofstream outfile(ReplaceExtension(input, "bwcsr"), std::ofstream::binary);
+			
+			outfile.write((char*)&num_nodes, sizeof(unsigned int));
+			outfile.write((char*)&num_edges, sizeof(unsigned int));
+			outfile.write ((char*)nodePointer, sizeof(unsigned int)*num_nodes);
+			outfile.write ((char*)edgeList, sizeof(OutEdgeWeighted)*num_edges);
+			
+			outfile.close();
+			delete[] edgeList;
 		}
+		else
+		{
+			OutEdge *edgeList = new OutEdge[num_edges];
+			uint location;  
+			for(uint i=0; i<num_edges; i++)
+			{
+				uint location = nodePointer[edges[i].source] + outDegreeCounter[edges[i].source];
+				edgeList[location].end = edges[i].end;
+				outDegreeCounter[edges[i].source]++;  
+			}
+
+			std::ofstream outfile(ReplaceExtension(input, "bcsr"), std::ofstream::binary);
+			
+			outfile.write((char*)&num_nodes, sizeof(unsigned int));
+			outfile.write((char*)&num_edges, sizeof(unsigned int));
+			outfile.write ((char*)nodePointer, sizeof(unsigned int)*num_nodes);
+			outfile.write ((char*)edgeList, sizeof(OutEdge)*num_edges);
+			
+			outfile.close();
+			delete[] edgeList;
+		}
+
 		edges.clear();
 		delete[] degree;
 		delete[] outDegreeCounter;
-		
-		std::ofstream outfile(input.substr(0, input.length()-2)+"bcsr", std::ofstream::binary);
-		
-		outfile.write((char*)&num_nodes, sizeof(unsigned int));
-		outfile.write((char*)&num_edges, sizeof(unsigned int));
-		outfile.write ((char*)nodePointer, sizeof(unsigned int)*num_nodes);
-		outfile.write ((char*)edgeList, sizeof(OutEdge)*num_edges);
-		
-		outfile.close();
 	}
 	else if(GetFileExtension(input) == "wel")
 	{
@@ -107,13 +167,17 @@ int main(int argc, char** argv)
 		EdgeWeighted newEdge;
 		while(getline( infile, line ))
 		{
+			if(IsCommentOrEmptyLine(line))
+				continue;
+
 			ss.str("");
 			ss.clear();
 			ss << line;
-			
-			ss >> newEdge.source;
-			ss >> newEdge.end;
-			ss >> newEdge.w8;
+
+			if(!(ss >> newEdge.source >> newEdge.end))
+				continue;
+			if(!(ss >> newEdge.w8))
+				newEdge.w8 = 1;
 			
 			edges.push_back(newEdge);
 			edgeCounter++;
@@ -142,6 +206,8 @@ int main(int argc, char** argv)
 			counter = counter + degree[i];
 		}
 		uint *outDegreeCounter  = new uint[num_nodes];
+		for(uint i=0; i<num_nodes; i++)
+			outDegreeCounter[i] = 0;
 		uint location;  
 		for(uint i=0; i<num_edges; i++)
 		{
@@ -154,7 +220,7 @@ int main(int argc, char** argv)
 		delete[] degree;
 		delete[] outDegreeCounter;
 		
-		std::ofstream outfile(input.substr(0, input.length()-3)+"bwcsr", std::ofstream::binary);
+		std::ofstream outfile(ReplaceExtension(input, "bwcsr"), std::ofstream::binary);
 		
 		outfile.write((char*)&num_nodes, sizeof(unsigned int));
 		outfile.write((char*)&num_edges, sizeof(unsigned int));

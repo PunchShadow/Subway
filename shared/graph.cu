@@ -1,5 +1,17 @@
 #include "graph.cuh"
 #include "gpu_error_check.cuh"
+#include <cctype>
+
+static bool IsCommentOrEmptyLine(const string& line)
+{
+	for(size_t i = 0; i < line.size(); i++)
+	{
+		unsigned char c = static_cast<unsigned char>(line[i]);
+		if(!isspace(c))
+			return c == '#' || c == '%';
+	}
+	return true;
+}
 
 template <class E>
 Graph<E>::Graph(string graphFilePath, bool isWeighted)
@@ -50,7 +62,8 @@ void Graph<E>::ReadGraph()
 		infile.read ((char*)edgeList, sizeof(E)*num_edges);
 		nodePointer[num_nodes] = num_edges;
 	}
-	else if(graphFormat == "el" || graphFormat == "wel")
+	else if(graphFormat == "el" || graphFormat == "wel" ||
+		graphFormat == "txt" || graphFormat == "snap")
 	{
 		ifstream infile;
 		infile.open(graphFilePath);
@@ -64,13 +77,17 @@ void Graph<E>::ReadGraph()
 			EdgeWeighted newEdge;
 			while(getline( infile, line ))
 			{
+				if(IsCommentOrEmptyLine(line))
+					continue;
+
 				ss.str("");
 				ss.clear();
 				ss << line;
-				
-				ss >> newEdge.source;
-				ss >> newEdge.end;
-				ss >> newEdge.w8;
+
+				if(!(ss >> newEdge.source >> newEdge.end))
+					continue;
+				if(!(ss >> newEdge.w8))
+					newEdge.w8 = 1;
 				
 				edges.push_back(newEdge);
 				edgeCounter++;
@@ -99,6 +116,8 @@ void Graph<E>::ReadGraph()
 			}
 			nodePointer[num_nodes] = num_edges;
 			uint *outDegreeCounter  = new uint[num_nodes];
+			for(uint i=0; i<num_nodes; i++)
+				outDegreeCounter[i] = 0;
 			uint location;  
 			for(uint i=0; i<num_edges; i++)
 			{
@@ -120,12 +139,15 @@ void Graph<E>::ReadGraph()
 			Edge newEdge;
 			while(getline( infile, line ))
 			{
+				if(IsCommentOrEmptyLine(line))
+					continue;
+
 				ss.str("");
 				ss.clear();
 				ss << line;
-				
-				ss >> newEdge.source;
-				ss >> newEdge.end;
+
+				if(!(ss >> newEdge.source >> newEdge.end))
+					continue;
 				
 				edges.push_back(newEdge);
 				edgeCounter++;
@@ -154,6 +176,8 @@ void Graph<E>::ReadGraph()
 			}
 			nodePointer[num_nodes] = num_edges;
 			uint *outDegreeCounter  = new uint[num_nodes];
+			for(uint i=0; i<num_nodes; i++)
+				outDegreeCounter[i] = 0;
 			uint location;  
 			for(uint i=0; i<num_edges; i++)
 			{
@@ -247,7 +271,8 @@ void GraphPR<E>::ReadGraph()
 		infile.read ((char*)edgeList, sizeof(E)*num_edges);
 		nodePointer[num_nodes] = num_edges;
 	}
-	else if(graphFormat == "el" || graphFormat == "wel")
+	else if(graphFormat == "el" || graphFormat == "wel" ||
+		graphFormat == "txt" || graphFormat == "snap")
 	{
 		ifstream infile;
 		infile.open(graphFilePath);
@@ -261,13 +286,17 @@ void GraphPR<E>::ReadGraph()
 			EdgeWeighted newEdge;
 			while(getline( infile, line ))
 			{
+				if(IsCommentOrEmptyLine(line))
+					continue;
+
 				ss.str("");
 				ss.clear();
 				ss << line;
-				
-				ss >> newEdge.source;
-				ss >> newEdge.end;
-				ss >> newEdge.w8;
+
+				if(!(ss >> newEdge.source >> newEdge.end))
+					continue;
+				if(!(ss >> newEdge.w8))
+					newEdge.w8 = 1;
 				
 				edges.push_back(newEdge);
 				edgeCounter++;
@@ -296,6 +325,8 @@ void GraphPR<E>::ReadGraph()
 			}
 			nodePointer[num_nodes] = num_edges;
 			uint *outDegreeCounter  = new uint[num_nodes];
+			for(uint i=0; i<num_nodes; i++)
+				outDegreeCounter[i] = 0;
 			uint location;  
 			for(uint i=0; i<num_edges; i++)
 			{
@@ -317,12 +348,15 @@ void GraphPR<E>::ReadGraph()
 			Edge newEdge;
 			while(getline( infile, line ))
 			{
+				if(IsCommentOrEmptyLine(line))
+					continue;
+
 				ss.str("");
 				ss.clear();
 				ss << line;
-				
-				ss >> newEdge.source;
-				ss >> newEdge.end;
+
+				if(!(ss >> newEdge.source >> newEdge.end))
+					continue;
 				
 				edges.push_back(newEdge);
 				edgeCounter++;
@@ -351,6 +385,8 @@ void GraphPR<E>::ReadGraph()
 			}
 			nodePointer[num_nodes] = num_edges;
 			uint *outDegreeCounter  = new uint[num_nodes];
+			for(uint i=0; i<num_nodes; i++)
+				outDegreeCounter[i] = 0;
 			uint location;  
 			for(uint i=0; i<num_edges; i++)
 			{
