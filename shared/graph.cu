@@ -51,6 +51,7 @@ void Graph<E>::ReadGraph()
 	if(graphFormat == "bcsr" || graphFormat == "bwcsr")
 	{
 		ifstream infile (graphFilePath, ios::in | ios::binary);
+		bool fileHasWeight = (graphFormat == "bwcsr");
 	
 		infile.read ((char*)&num_nodes, sizeof(uint));
 		infile.read ((char*)&num_edges, sizeof(uint));
@@ -59,8 +60,30 @@ void Graph<E>::ReadGraph()
 		gpuErrorcheck(cudaMallocHost(&edgeList, (num_edges) * sizeof(E)));
 		
 		infile.read ((char*)nodePointer, sizeof(uint)*num_nodes);
-		infile.read ((char*)edgeList, sizeof(E)*num_edges);
 		nodePointer[num_nodes] = num_edges;
+
+		if(fileHasWeight)
+		{
+			vector<OutEdgeWeighted> weightedEdgeList(num_edges);
+			if(num_edges > 0)
+				infile.read((char*)weightedEdgeList.data(), sizeof(OutEdgeWeighted) * num_edges);
+			for(uint i = 0; i < num_edges; i++)
+			{
+				edgeList[i].end = weightedEdgeList[i].end;
+				AssignW8(weightedEdgeList[i].w8, i);
+			}
+		}
+		else
+		{
+			vector<OutEdge> plainEdgeList(num_edges);
+			if(num_edges > 0)
+				infile.read((char*)plainEdgeList.data(), sizeof(OutEdge) * num_edges);
+			for(uint i = 0; i < num_edges; i++)
+			{
+				edgeList[i].end = plainEdgeList[i].end;
+				AssignW8(1, i); // default weight for weighted apps reading .bcsr
+			}
+		}
 	}
 	else if(graphFormat == "el" || graphFormat == "wel" ||
 		graphFormat == "txt" || graphFormat == "snap")
@@ -260,6 +283,7 @@ void GraphPR<E>::ReadGraph()
 	if(graphFormat == "bcsr" || graphFormat == "bwcsr")
 	{
 		ifstream infile (graphFilePath, ios::in | ios::binary);
+		bool fileHasWeight = (graphFormat == "bwcsr");
 	
 		infile.read ((char*)&num_nodes, sizeof(uint));
 		infile.read ((char*)&num_edges, sizeof(uint));
@@ -268,8 +292,30 @@ void GraphPR<E>::ReadGraph()
 		gpuErrorcheck(cudaMallocHost(&edgeList, (num_edges) * sizeof(E)));
 		
 		infile.read ((char*)nodePointer, sizeof(uint)*num_nodes);
-		infile.read ((char*)edgeList, sizeof(E)*num_edges);
 		nodePointer[num_nodes] = num_edges;
+
+		if(fileHasWeight)
+		{
+			vector<OutEdgeWeighted> weightedEdgeList(num_edges);
+			if(num_edges > 0)
+				infile.read((char*)weightedEdgeList.data(), sizeof(OutEdgeWeighted) * num_edges);
+			for(uint i = 0; i < num_edges; i++)
+			{
+				edgeList[i].end = weightedEdgeList[i].end;
+				AssignW8(weightedEdgeList[i].w8, i);
+			}
+		}
+		else
+		{
+			vector<OutEdge> plainEdgeList(num_edges);
+			if(num_edges > 0)
+				infile.read((char*)plainEdgeList.data(), sizeof(OutEdge) * num_edges);
+			for(uint i = 0; i < num_edges; i++)
+			{
+				edgeList[i].end = plainEdgeList[i].end;
+				AssignW8(1, i); // default weight for weighted apps reading .bcsr
+			}
+		}
 	}
 	else if(graphFormat == "el" || graphFormat == "wel" ||
 		graphFormat == "txt" || graphFormat == "snap")

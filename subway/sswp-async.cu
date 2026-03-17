@@ -43,9 +43,9 @@ int main(int argc, char** argv)
 	gpuErrorcheck(cudaMemcpy(graph.d_label1, graph.label1, graph.num_nodes * sizeof(bool), cudaMemcpyHostToDevice));
 	gpuErrorcheck(cudaMemcpy(graph.d_label2, graph.label2, graph.num_nodes * sizeof(bool), cudaMemcpyHostToDevice));
 	
-	Subgraph<OutEdgeWeighted> subgraph(graph.num_nodes, graph.num_edges);
-	
 	SubgraphGenerator<OutEdgeWeighted> subgen(graph);
+
+	Subgraph<OutEdgeWeighted> subgraph(graph.num_nodes, graph.num_edges);
 	
 	subgen.generate(graph, subgraph);
 	
@@ -124,4 +124,3 @@ int main(int argc, char** argv)
 	if(arguments.hasOutput)
 		utilities::SaveResults(arguments.output, graph.value, graph.num_nodes);
 }
-

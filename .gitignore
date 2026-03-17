@@ -11,3 +11,6 @@ sssp-sync
 sswp-async
 sswp-sync
 tools/converter
+*.csv
+bfs-async-profile
+bfs-sync-profile

@@ -47,11 +47,11 @@ int main(int argc, char** argv)
 	gpuErrorcheck(cudaMemcpy(graph.d_value, graph.value, graph.num_nodes * sizeof(float), cudaMemcpyHostToDevice));
 	gpuErrorcheck(cudaMemcpy(graph.d_delta, graph.delta, graph.num_nodes * sizeof(float), cudaMemcpyHostToDevice));
 	
+	SubgraphGenerator<OutEdge> subgen(graph);
+
 	Subgraph<OutEdge> subgraph(graph.num_nodes, graph.num_edges);
 	
-	SubgraphGenerator<OutEdge> subgen(graph);
-	
-	subgen.generate(graph, subgraph, acc);	
+	subgen.generate(graph, subgraph, acc);
 
 	Partitioner<OutEdge> partitioner;
 	
@@ -122,4 +122,3 @@ int main(int argc, char** argv)
 	if(arguments.hasOutput)
 		utilities::SaveResults(arguments.output, graph.value, graph.num_nodes);
 }
-

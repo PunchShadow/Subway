@@ -1,0 +1,29 @@
+Motivation Experiment: CPU Packing Bottleneck in Subway BFS
+============================================================
+Date: 2026-03-06
+Hardware: NVIDIA RTX A4000 (sm_86), 16GB VRAM
+Dataset: uk-2007.bcsr (105M nodes, 3.3B edges, 13GB)
+Algorithm: BFS-async
+Source node: 1895 (out-degree 247,162)
+
+Command:
+  ./bfs-async-profile --input datasets/KONECT/uk-2007.bcsr --source 1895
+
+Full output:
+  Graph Reading: 4.58s
+  Total BFS Processing: 1.71s
+  Global Iterations: 21
+
+Per-iteration data saved to: bfs_profile_uk2007_source1895.csv
+Plot saved to: motivation_cpu_bottleneck.png
+
+Key observations:
+  - Overall CPU Packing fraction: 64.2%
+  - Overall H2D fraction: 4.8%
+  - Overall GPU Compute fraction: 31.0%
+  - Iterations 2-6 (peak frontier): CPU Packing = 42-66% of iteration time
+  - Iterations 13-21 (shrinking frontier): CPU Packing = 96-99% of iteration time
+  - CPU Packing has a ~10ms baseline floor regardless of frontier size
+    (dominated by GPU prefix scan + D2H copies in subgraph generation)
+
+Note: Iteration 1 excluded from plot (initial setup with all 105M nodes active)

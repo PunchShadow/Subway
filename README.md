@@ -64,7 +64,7 @@ $ ./sssp-async --input path-to-input-graph
 $ ./sssp-async --input path-to-input-graph --source 10
 ```
 
-For applications that run on weighted graphs, like SSSP, the input must be weighted (.bwcsr or .wel) and for applications that run on unweighted graphs, like BFS, the input must be unweighted (.bcsr or .el).
+For applications that run on weighted graphs, like SSSP, the input should be weighted (`.bwcsr` or `.wel`) to preserve edge weights. Applications that run on unweighted graphs (BFS/CC/PageRank) can read `.bwcsr` as well; the loader ignores weights and treats it as an unweighted graph.
 
 #### Publications:
 
